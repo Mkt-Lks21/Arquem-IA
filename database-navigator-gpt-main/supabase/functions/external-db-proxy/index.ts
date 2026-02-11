@@ -6,6 +6,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function referencesNonPublicSchema(query: string): boolean {
+  const normalized = query.toLowerCase();
+  const schemaRefs = normalized.match(/\b([a-z_][a-z0-9_]*)\s*\./g) || [];
+  return schemaRefs.some((ref) => !ref.startsWith("public."));
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -17,8 +23,8 @@ serve(async (req) => {
 
     if (!externalUrl || !externalKey) {
       return new Response(
-        JSON.stringify({ 
-          error: "Credenciais do banco externo não configuradas. Configure EXTERNAL_SUPABASE_URL e EXTERNAL_SUPABASE_SERVICE_KEY nos secrets." 
+        JSON.stringify({
+          error: "Credenciais do banco externo não configuradas. Configure EXTERNAL_SUPABASE_URL e EXTERNAL_SUPABASE_SERVICE_KEY nos secrets."
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -28,14 +34,11 @@ serve(async (req) => {
     const externalSupabase = createClient(externalUrl, externalKey);
 
     if (action === "fetch-metadata") {
-      // Fetch metadata from external database using RPC or direct query
       const { data, error } = await externalSupabase.rpc("get_database_metadata");
 
       if (error) {
-        // Fallback: try to get basic table info
-        console.log("RPC not available, returning connection status");
         return new Response(
-          JSON.stringify({ 
+          JSON.stringify({
             success: true,
             message: "Conexão estabelecida, mas função get_database_metadata não existe no banco externo.",
             hint: "Execute a migração SQL para criar a função no seu banco externo.",
@@ -45,8 +48,10 @@ serve(async (req) => {
         );
       }
 
+      const publicData = (data || []).filter((row: any) => row.schema_name === "public");
+
       return new Response(
-        JSON.stringify({ success: true, data }),
+        JSON.stringify({ success: true, data: publicData }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -59,10 +64,14 @@ serve(async (req) => {
         );
       }
 
-      // Sanitize: remove trailing semicolons and whitespace that break subquery wrapping
       const sanitizedQuery = query.trim().replace(/;+\s*$/, "");
-      
-      // Execute on external database (sem validação restritiva - queries complexas permitidas)
+      if (referencesNonPublicSchema(sanitizedQuery)) {
+        return new Response(
+          JSON.stringify({ error: "Apenas o schema public é permitido." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       const { data, error } = await externalSupabase.rpc("execute_safe_query", { query_text: sanitizedQuery });
 
       if (error) {
@@ -79,18 +88,17 @@ serve(async (req) => {
     }
 
     if (action === "test-connection") {
-      // Test connection by running a simple query
-      const { data, error } = await externalSupabase
+      await externalSupabase
         .from("information_schema.tables")
         .select("table_name")
+        .eq("table_schema", "public")
         .limit(1);
 
-      // Even if this fails due to permissions, if we get any response the connection works
       return new Response(
-        JSON.stringify({ 
-          success: true, 
+        JSON.stringify({
+          success: true,
           message: "Conexão com banco externo estabelecida com sucesso!",
-          url: externalUrl.replace(/^(https?:\/\/[^/]+).*/, "$1") // Mask full URL
+          url: externalUrl.replace(/^(https?:\/\/[^/]+).*/, "$1")
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

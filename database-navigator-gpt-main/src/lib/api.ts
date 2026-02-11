@@ -14,7 +14,7 @@ export async function getConversations(): Promise<Conversation[]> {
 export async function createConversation(title?: string, agentId?: string): Promise<Conversation> {
   const insertData: any = { title: title || "Nova Conversa" };
   if (agentId) insertData.agent_id = agentId;
-  
+
   const { data, error } = await supabase
     .from("conversations")
     .insert(insertData)
@@ -81,10 +81,8 @@ export async function saveLLMSettings(settings: {
   model: string;
   api_key: string;
 }): Promise<LLMSettings> {
-  // Deactivate existing settings
   await supabase.from("llm_settings").update({ is_active: false }).eq("is_active", true);
 
-  // Create new settings
   const { data, error } = await supabase
     .from("llm_settings")
     .insert({ ...settings, is_active: true })
@@ -96,32 +94,11 @@ export async function saveLLMSettings(settings: {
 }
 
 export async function getMetadata(): Promise<DatabaseMetadata[]> {
-  const { data, error } = await supabase
-    .from("database_metadata_cache")
-    .select("*")
-    .order("schema_name, table_name, column_name");
-
-  if (error) throw error;
-  return data || [];
+  return fetchExternalMetadata();
 }
 
 export async function refreshMetadata(): Promise<void> {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-  const response = await fetch(`${supabaseUrl}/functions/v1/fetch-metadata`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: supabaseKey,
-      Authorization: `Bearer ${supabaseKey}`,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Failed to refresh metadata");
-  }
+  await fetchExternalMetadata();
 }
 
 export async function fetchExternalMetadata(): Promise<DatabaseMetadata[]> {
@@ -148,44 +125,22 @@ export async function fetchExternalMetadata(): Promise<DatabaseMetadata[]> {
     throw new Error(result.message + " " + result.hint);
   }
 
-  return (result.data || []).map((item: any, index: number) => ({
-    id: `external-${index}`,
-    schema_name: item.schema_name,
-    table_name: item.table_name,
-    column_name: item.column_name,
-    data_type: item.data_type,
-    is_nullable: item.is_nullable,
-    column_default: item.column_default,
-    cached_at: new Date().toISOString(),
-  }));
+  return (result.data || [])
+    .filter((item: any) => item.schema_name === "public")
+    .map((item: any, index: number) => ({
+      id: `external-${index}`,
+      schema_name: item.schema_name,
+      table_name: item.table_name,
+      column_name: item.column_name,
+      data_type: item.data_type,
+      is_nullable: item.is_nullable,
+      column_default: item.column_default,
+      cached_at: new Date().toISOString(),
+    }));
 }
 
-export async function cacheExternalMetadata(metadata: DatabaseMetadata[]): Promise<void> {
-  // Clear old external metadata cache by schema_name prefix
-  await supabase
-    .from("database_metadata_cache")
-    .delete()
-    .like("schema_name", "external.%");
-
-  // Insert new external metadata with external prefix in schema
-  const toInsert = metadata.map((item) => ({
-    schema_name: `external.${item.schema_name}`,
-    table_name: item.table_name,
-    column_name: item.column_name,
-    data_type: item.data_type,
-    is_nullable: item.is_nullable,
-    column_default: item.column_default,
-  }));
-
-  if (toInsert.length > 0) {
-    const { error } = await supabase
-      .from("database_metadata_cache")
-      .insert(toInsert);
-    
-    if (error) {
-      console.error("Failed to cache external metadata:", error);
-    }
-  }
+export async function cacheExternalMetadata(_metadata: DatabaseMetadata[]): Promise<void> {
+  return;
 }
 
 export async function executeExternalQuery(query: string): Promise<any[]> {
@@ -214,7 +169,6 @@ export async function executeExternalQuery(query: string): Promise<any[]> {
 export async function sendChatMessage(
   messages: { role: string; content: string }[],
   conversationId: string,
-  databaseTarget: "internal" | "external" = "internal",
   agentId?: string
 ): Promise<Response> {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -227,7 +181,7 @@ export async function sendChatMessage(
       apikey: supabaseKey,
       Authorization: `Bearer ${supabaseKey}`,
     },
-    body: JSON.stringify({ messages, conversationId, databaseTarget, agentId }),
+    body: JSON.stringify({ messages, conversationId, agentId }),
   });
 }
 
@@ -304,10 +258,8 @@ export async function setAgentTables(
   agentId: string,
   tables: { schema_name: string; table_name: string }[]
 ): Promise<void> {
-  // Delete existing
   await supabase.from("agent_tables").delete().eq("agent_id", agentId);
 
-  // Insert new
   if (tables.length > 0) {
     const { error } = await supabase
       .from("agent_tables")
@@ -317,10 +269,5 @@ export async function setAgentTables(
 }
 
 export async function executeQuery(query: string): Promise<any[]> {
-  const { data, error } = await supabase.rpc("execute_safe_query", {
-    query_text: query,
-  });
-
-  if (error) throw error;
-  return (data as any[]) || [];
+  return executeExternalQuery(query);
 }

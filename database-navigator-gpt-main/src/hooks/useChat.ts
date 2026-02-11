@@ -18,12 +18,10 @@ export function useChat(agentId?: string) {
   const [isLoading, setIsLoading] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
 
-  // Load conversations on mount
   useEffect(() => {
     loadConversations();
   }, []);
 
-  // Load messages when conversation changes
   useEffect(() => {
     if (currentConversationId) {
       loadMessages(currentConversationId);
@@ -62,7 +60,7 @@ export function useChat(agentId?: string) {
         setCurrentConversationId(null);
       }
       toast.success("Conversa excluída");
-    } catch (error) {
+    } catch {
       toast.error("Erro ao excluir conversa");
     }
   }, [currentConversationId]);
@@ -72,19 +70,18 @@ export function useChat(agentId?: string) {
       const newConversation = await createConversation(undefined, agentId);
       setConversations((prev) => [newConversation, ...prev]);
       setCurrentConversationId(newConversation.id);
-    } catch (error) {
+    } catch {
       toast.error("Erro ao criar conversa");
     }
   }, [agentId]);
 
-  const sendMessage = useCallback(async (content: string, databaseTarget: "internal" | "external" = "internal") => {
+  const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;
 
     setIsLoading(true);
     setStreamingContent("");
 
     try {
-      // Create conversation if needed
       let conversationId = currentConversationId;
       if (!conversationId) {
         const newConversation = await createConversation(undefined, agentId);
@@ -93,11 +90,9 @@ export function useChat(agentId?: string) {
         setCurrentConversationId(conversationId);
       }
 
-      // Save user message
       const userMessage = await createMessage(conversationId, "user", content);
       setMessages((prev) => [...prev, userMessage]);
 
-      // Update conversation title if it's the first message
       if (messages.length === 0) {
         const title = content.slice(0, 50) + (content.length > 50 ? "..." : "");
         await updateConversationTitle(conversationId, title);
@@ -106,21 +101,18 @@ export function useChat(agentId?: string) {
         );
       }
 
-      // Prepare messages for API
       const apiMessages = [
         ...messages.map((m) => ({ role: m.role, content: m.content })),
         { role: "user", content },
       ];
 
-      // Send to chat API with database target
-      const response = await sendChatMessage(apiMessages, conversationId, databaseTarget, agentId);
+      const response = await sendChatMessage(apiMessages, conversationId, agentId);
 
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || "Erro ao enviar mensagem");
       }
 
-      // Process streaming response
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let fullContent = "";
@@ -153,7 +145,6 @@ export function useChat(agentId?: string) {
         }
       }
 
-      // Save assistant message
       if (fullContent) {
         const assistantMessage = await createMessage(
           conversationId,
