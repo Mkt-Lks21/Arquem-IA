@@ -380,9 +380,9 @@ export default function Admin() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Metadados do Banco Local</CardTitle>
+                    <CardTitle>Metadados do Supabase Externo (public)</CardTitle>
                     <CardDescription>
-                      Estrutura das tabelas disponíveis para análise (banco local).
+                      Estrutura das tabelas disponíveis para análise no Supabase externo (schema public).
                     </CardDescription>
                   </div>
                   <Button

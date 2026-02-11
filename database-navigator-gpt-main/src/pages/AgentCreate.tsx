@@ -26,7 +26,7 @@ export default function AgentCreate() {
         const metadata = await getMetadata();
         const tableSet = new Map<string, { schema: string; table: string }>();
         metadata.forEach((m: DatabaseMetadata) => {
-          const key = `${m.schema_name}.${m.table_name}`;
+          const key = JSON.stringify({ schema: m.schema_name, table: m.table_name });
           if (!tableSet.has(key)) {
             tableSet.set(key, { schema: m.schema_name, table: m.table_name });
           }
@@ -67,8 +67,8 @@ export default function AgentCreate() {
       });
 
       const tables = Array.from(selectedTables).map((key) => {
-        const [schema, table] = key.split(".");
-        return { schema_name: schema, table_name: table };
+        const parsed = JSON.parse(key) as { schema: string; table: string };
+        return { schema_name: parsed.schema, table_name: parsed.table };
       });
 
       await setAgentTables(agent.id, tables);
@@ -155,7 +155,7 @@ export default function AgentCreate() {
               </p>
             ) : (
               availableTables.map(({ schema, table }) => {
-                const key = `${schema}.${table}`;
+                const key = JSON.stringify({ schema, table });
                 return (
                   <label
                     key={key}

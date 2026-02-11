@@ -1,31 +1,14 @@
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Send, Database, ChevronDown } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-export type DatabaseTarget = "internal" | "external";
+import { Send, Database } from "lucide-react";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
   isLoading: boolean;
-  selectedDatabase: DatabaseTarget;
-  onDatabaseChange: (db: DatabaseTarget) => void;
-  hasExternalDb: boolean;
 }
 
-export default function ChatInput({ 
-  onSend, 
-  isLoading, 
-  selectedDatabase, 
-  onDatabaseChange,
-  hasExternalDb 
-}: ChatInputProps) {
+export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
   const [input, setInput] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -50,8 +33,6 @@ export default function ChatInput({
     }
   };
 
-  const databaseLabel = selectedDatabase === "external" ? "Banco Externo" : "Banco Local";
-
   return (
     <div className="border-t p-4 bg-background">
       <div className="max-w-4xl mx-auto space-y-2">
@@ -63,44 +44,19 @@ export default function ChatInput({
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Pergunte algo sobre seu banco de dados..."
-              className="min-h-[44px] max-h-[200px] resize-none pr-32"
+              className="min-h-[44px] max-h-[200px] resize-none pr-44"
               disabled={isLoading}
             />
             <div className="absolute right-2 bottom-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="h-7 text-xs gap-1 bg-background"
-                    disabled={isLoading}
-                  >
-                    <Database className="w-3 h-3" />
-                    {databaseLabel}
-                    <ChevronDown className="w-3 h-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem 
-                    onClick={() => onDatabaseChange("internal")}
-                    className={selectedDatabase === "internal" ? "bg-accent" : ""}
-                  >
-                    <Database className="w-4 h-4 mr-2" />
-                    Banco Local
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={() => onDatabaseChange("external")}
-                    disabled={!hasExternalDb}
-                    className={selectedDatabase === "external" ? "bg-accent" : ""}
-                  >
-                    <Database className="w-4 h-4 mr-2" />
-                    Banco Externo
-                    {!hasExternalDb && (
-                      <span className="ml-2 text-xs text-muted-foreground">(não configurado)</span>
-                    )}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1 bg-background"
+                disabled
+              >
+                <Database className="w-3 h-3" />
+                Supabase Externo (public)
+              </Button>
             </div>
           </div>
           <Button

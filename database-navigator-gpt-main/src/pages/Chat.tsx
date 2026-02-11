@@ -1,11 +1,9 @@
 import { useChat } from "@/hooks/useChat";
 import AppSidebar from "@/components/sidebar/AppSidebar";
 import ChatMessages from "@/components/chat/ChatMessages";
-import ChatInput, { DatabaseTarget } from "@/components/chat/ChatInput";
-import { executeQuery, executeExternalQuery, fetchExternalMetadata, cacheExternalMetadata } from "@/lib/api";
-import { useEffect, useState } from "react";
+import ChatInput from "@/components/chat/ChatInput";
+import { executeExternalQuery } from "@/lib/api";
 import { useParams } from "react-router-dom";
-import { toast } from "sonner";
 
 export default function Chat() {
   const { agentId } = useParams<{ agentId?: string }>();
@@ -21,39 +19,8 @@ export default function Chat() {
     createNewConversation,
   } = useChat(agentId);
 
-  const [hasExternalDb, setHasExternalDb] = useState(false);
-  const [selectedDatabase, setSelectedDatabase] = useState<DatabaseTarget>("internal");
-
-  useEffect(() => {
-    const initExternalDb = async () => {
-      try {
-        const data = await fetchExternalMetadata();
-        if (data.length > 0) {
-          setHasExternalDb(true);
-          await cacheExternalMetadata(data);
-        }
-      } catch {
-        setHasExternalDb(false);
-      }
-    };
-    initExternalDb();
-  }, []);
-
-  const handleDatabaseChange = async (db: DatabaseTarget) => {
-    setSelectedDatabase(db);
-    if (db === "external" && hasExternalDb) {
-      toast.info("Usando banco de dados externo para consultas");
-    } else {
-      toast.info("Usando banco de dados local para consultas");
-    }
-  };
-
-  const handleExecuteQuery = async (query: string, isExternal?: boolean) => {
-    const useExternal = isExternal ?? (selectedDatabase === "external");
-    if (useExternal && hasExternalDb) {
-      return await executeExternalQuery(query);
-    }
-    return await executeQuery(query);
+  const handleExecuteQuery = async (query: string) => {
+    return await executeExternalQuery(query);
   };
 
   return (
@@ -76,11 +43,8 @@ export default function Chat() {
         />
 
         <ChatInput
-          onSend={(msg) => sendMessage(msg, selectedDatabase)}
+          onSend={sendMessage}
           isLoading={isLoading}
-          selectedDatabase={selectedDatabase}
-          onDatabaseChange={handleDatabaseChange}
-          hasExternalDb={hasExternalDb}
         />
       </main>
     </div>

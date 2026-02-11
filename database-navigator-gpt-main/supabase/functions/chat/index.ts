@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, conversationId, databaseTarget = "internal", agentId } = await req.json();
+    const { messages, conversationId, agentId } = await req.json();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -51,68 +51,59 @@ serve(async (req) => {
       }
     }
 
+    const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL");
+    const externalKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_KEY");
+
+    if (!externalUrl || !externalKey) {
+      return new Response(
+        JSON.stringify({ error: "Banco externo não configurado. Defina EXTERNAL_SUPABASE_URL e EXTERNAL_SUPABASE_SERVICE_KEY." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     let metadataContext = "";
-    
-    if (databaseTarget === "external") {
-      const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL");
-      const externalKey = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_KEY");
-      
-      if (externalUrl && externalKey) {
-        try {
-          const externalSupabase = createClient(externalUrl, externalKey);
-          let { data: extData } = await externalSupabase.rpc("get_database_metadata");
-          
-          // Filter by agent tables if applicable
-          if (agentContext && agentContext.tables.length > 0) {
-            const allowedTables = new Set(
-              agentContext.tables.map((t: any) => `${t.schema_name}.${t.table_name}`)
-            );
-            extData = (extData || []).filter((row: any) => 
-              allowedTables.has(`${row.schema_name}.${row.table_name}`)
-            );
-          }
-          
-          if (extData && extData.length > 0) {
-            metadataContext = `\n\nEstrutura do BANCO DE DADOS EXTERNO (use este para todas as queries):\n${formatMetadata(extData)}`;
-          }
-        } catch (e) {
-          console.log("Could not fetch external metadata:", e);
-        }
-      }
-    } else {
-      const { data: metadata } = await supabase
-        .from("database_metadata_cache")
-        .select("*")
-        .not("schema_name", "like", "external.%")
-        .order("schema_name, table_name, column_name");
+    try {
+      const externalSupabase = createClient(externalUrl, externalKey);
+      let { data: extData } = await externalSupabase.rpc("get_database_metadata");
 
-      let filteredMetadata = metadata || [];
+      let filteredData = (extData || []).filter((row: any) => row.schema_name === "public");
 
-      // Filter by agent tables if applicable
       if (agentContext && agentContext.tables.length > 0) {
         const allowedTables = new Set(
-          agentContext.tables.map((t: any) => `${t.schema_name}.${t.table_name}`)
+          agentContext.tables.map((t: any) => {
+            const schemaName = typeof t.schema_name === "string" && t.schema_name.startsWith("external.")
+              ? t.schema_name.replace(/^external\./, "")
+              : t.schema_name;
+            return `${schemaName}.${t.table_name}`;
+          })
         );
-        filteredMetadata = filteredMetadata.filter((row: any) =>
+
+        filteredData = filteredData.filter((row: any) =>
           allowedTables.has(`${row.schema_name}.${row.table_name}`)
         );
       }
 
-      if (filteredMetadata.length > 0) {
-        metadataContext = `\n\nEstrutura do banco de dados interno:\n${formatMetadata(filteredMetadata)}`;
+      if (filteredData.length > 0) {
+        metadataContext = `\n\nEstrutura do banco de dados Supabase externo (schema public):\n${formatMetadata(filteredData)}`;
       }
+    } catch (e) {
+      console.log("Could not fetch external metadata:", e);
     }
 
     // ===== Build system prompt =====
-    const targetDescription = databaseTarget === "external" 
-      ? "BANCO DE DADOS EXTERNO do usuário" 
-      : "banco de dados interno";
+    const targetDescription = "BANCO DE DADOS EXTERNO no Supabase (apenas schema public)";
 
     let behaviorPrompt: string;
 
     if (agentContext) {
       const tablesList = agentContext.tables
-        .map((t: any) => `${t.schema_name}.${t.table_name}`)
+        .map((t: any) => {
+          const schemaName = typeof t.schema_name === "string" && t.schema_name.startsWith("external.")
+            ? t.schema_name.replace(/^external\./, "")
+            : t.schema_name;
+          return `${schemaName}.${t.table_name}`;
+        })
+        .filter((table: string) => table.startsWith("public."))
         .join(", ");
 
       if (agentContext.agent.system_prompt) {
@@ -143,7 +134,8 @@ Suas capacidades:
 - Análises avançadas como Curva ABC, Pareto, rankings, médias móveis
 - Sugerir otimizações e melhores práticas
 
-CONTEXTO: O usuário está usando o ${targetDescription}.`;
+CONTEXTO: O usuário está usando o ${targetDescription}.
+RESTRIÇÃO: você só pode usar tabelas do schema public.`;
     }
 
     const technicalInstructions = `
@@ -152,6 +144,7 @@ LIBERDADE TOTAL PARA QUERIES DE LEITURA:
 - Use CTEs, subqueries, window functions, CASE WHEN, e qualquer recurso do PostgreSQL
 - NÃO há restrições de keywords - use qualquer construção SQL necessária para a análise
 - A única limitação é que queries devem ser de LEITURA (não modifique dados)
+- RESTRIÇÃO DE ESQUEMA: use somente tabelas do schema public
 - IMPORTANTE: NUNCA coloque ponto e vírgula (;) no final das queries SQL. O sistema encapsula suas queries automaticamente e o ; causa erro de sintaxe.
 
 COMPORTAMENTO OBRIGATÓRIO:
