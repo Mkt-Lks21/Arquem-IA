@@ -127,16 +127,15 @@ REGRAS TECNICAS OBRIGATORIAS:
 - NUNCA coloque ponto e virgula (;) no final da query
 
 COMPORTAMENTO OBRIGATORIO:
-- SEMPRE que o usuario fizer uma pergunta sobre dados, voce DEVE executar a query automaticamente
-- Use SEMPRE a tag [AUTO_EXECUTE] antes de cada bloco SQL que deve ser executado
-- O sistema ira executar automaticamente qualquer query marcada com [AUTO_EXECUTE]
-- Apos mostrar os resultados, explique brevemente o que os dados significam
-
-Formato de resposta para queries:
-1. Explique brevemente o que voce vai buscar
-2. Coloque [AUTO_EXECUTE] na linha antes do bloco de codigo SQL
-3. O sistema executara e mostrara os resultados
-4. Analise os resultados para o usuario
+- Se a pergunta exigir consulta SQL, responda SOMENTE neste formato:
+[AUTO_EXECUTE]
+\`\`\`sql
+SELECT ...
+\`\`\`
+- Nao escreva narrativa, resumo ou markdown extra quando a resposta for SQL
+- Nao use o placeholder [RESULTADO_DA_QUERY]
+- Para mensagens que NAO exigem SQL (saudacao ou conversa geral), responda em texto simples, curto e sem markdown
+- Analise os resultados para o usuario, nao apenas apresente os dados brutos.
 `;
 
     const systemPrompt = `${behaviorPrompt}\n${technicalInstructions}\n${metadataContext}`;

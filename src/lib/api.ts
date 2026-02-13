@@ -265,10 +265,34 @@ export async function setAgentTables(
 }
 
 export async function executeQuery(query: string): Promise<any[]> {
-  const { data, error } = await supabase.rpc("app_execute_safe_query", {
-    query_text: query,
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/execute-query`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+    },
+    body: JSON.stringify({ query }),
   });
 
-  if (error) throw error;
-  return (data as any[]) || [];
+  if (!response.ok) {
+    let errorMessage = "Erro ao executar query";
+    try {
+      const error = await response.json();
+      errorMessage = error.error || error.message || errorMessage;
+    } catch {
+      // Ignore parse errors.
+    }
+    throw new Error(errorMessage);
+  }
+
+  const payload = await response.json();
+  if (!payload.success) {
+    throw new Error(payload.error || "Erro ao executar query");
+  }
+
+  return Array.isArray(payload.data) ? payload.data : [];
 }

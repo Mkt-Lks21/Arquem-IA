@@ -68,6 +68,7 @@ export default function ChatMessages({
             created_at: new Date().toISOString(),
           }}
           onExecuteQuery={onExecuteQuery}
+          disableAutoExecute
         />
       )}
 

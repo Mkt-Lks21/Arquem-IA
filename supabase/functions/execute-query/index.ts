@@ -27,10 +27,10 @@ function validateQuery(query: string): { valid: boolean; error?: string } {
   const trimmed = query.trim();
   const upperQuery = trimmed.toUpperCase();
 
-  if (!upperQuery.startsWith("SELECT")) {
+  if (!upperQuery.startsWith("SELECT") && !upperQuery.startsWith("WITH")) {
     return {
       valid: false,
-      error: "A query deve comecar com SELECT.",
+      error: "A query deve comecar com SELECT ou WITH.",
     };
   }
 
