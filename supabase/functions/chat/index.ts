@@ -125,6 +125,8 @@ REGRAS TECNICAS OBRIGATORIAS:
 - Gere APENAS queries SELECT
 - Use APENAS tabelas do schema public
 - NUNCA coloque ponto e virgula (;) no final da query
+- Quando o usuario disser "hoje", "ontem" ou "semana passada", use as datas explicitas do CONTEXTO TEMPORAL
+- Para colunas do tipo timestamp, use intervalos: >= DATE 'YYYY-MM-DD' AND < (DATE 'YYYY-MM-DD' + INTERVAL '1 day')
 
 COMPORTAMENTO OBRIGATORIO:
 - Se a pergunta exigir consulta SQL, responda SOMENTE neste formato:
@@ -138,7 +140,16 @@ SELECT ...
 - Analise os resultados para o usuario, nao apenas apresente os dados brutos.
 `;
 
-    const systemPrompt = `${behaviorPrompt}\n${technicalInstructions}\n${metadataContext}`;
+    const timeContext = buildTimeContext("America/Sao_Paulo");
+    const timeContextPrompt = timeContext
+      ? `\n\nCONTEXTO TEMPORAL (America/Sao_Paulo):\n` +
+        `- Hoje: ${timeContext.today}\n` +
+        `- Ontem: ${timeContext.yesterday}\n` +
+        `- Semana passada (seg-dom): ${timeContext.lastWeekStart} a ${timeContext.lastWeekEnd}\n` +
+        `- Agora (local): ${timeContext.localDateTime}\n`
+      : "\n\nCONTEXTO TEMPORAL: indisponivel.\n";
+
+    const systemPrompt = `${behaviorPrompt}\n${timeContextPrompt}\n${technicalInstructions}\n${metadataContext}`;
 
     let response;
 
@@ -187,6 +198,67 @@ function formatMetadata(metadata: any[]): string {
     }
   }
   return result;
+}
+
+type TimeContext = {
+  today: string;
+  yesterday: string;
+  lastWeekStart: string;
+  lastWeekEnd: string;
+  localDateTime: string;
+};
+
+function buildTimeContext(timeZone: string): TimeContext | null {
+  try {
+    const now = new Date();
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }).formatToParts(now);
+
+    const get = (type: string) => parts.find((p) => p.type === type)?.value;
+    const year = Number(get("year"));
+    const month = Number(get("month"));
+    const day = Number(get("day"));
+    const hour = get("hour") || "00";
+    const minute = get("minute") || "00";
+    const second = get("second") || "00";
+
+    if (!year || !month || !day) return null;
+
+    const todayDate = new Date(Date.UTC(year, month - 1, day));
+    const yesterdayDate = addDaysUTC(todayDate, -1);
+
+    const dow = todayDate.getUTCDay(); // 0=Sun..6=Sat
+    const mondayOffset = (dow + 6) % 7; // Monday=0
+    const currentWeekStart = addDaysUTC(todayDate, -mondayOffset);
+    const lastWeekStart = addDaysUTC(currentWeekStart, -7);
+    const lastWeekEnd = addDaysUTC(currentWeekStart, -1);
+
+    return {
+      today: formatDateUTC(todayDate),
+      yesterday: formatDateUTC(yesterdayDate),
+      lastWeekStart: formatDateUTC(lastWeekStart),
+      lastWeekEnd: formatDateUTC(lastWeekEnd),
+      localDateTime: `${formatDateUTC(todayDate)} ${hour}:${minute}:${second}`,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function addDaysUTC(date: Date, days: number): Date {
+  return new Date(date.getTime() + days * 86400000);
+}
+
+function formatDateUTC(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }
 
 async function callOpenAI(apiKey: string, model: string, systemPrompt: string, messages: any[]) {
