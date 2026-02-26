@@ -15,7 +15,7 @@ export default function AgentCreate() {
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [systemPrompt, setSystemPrompt] = useState("");
+  const [systemmer, setSystemPrompt] = useState("");
   const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
   const [availableTables, setAvailableTables] = useState<{ schema: string; table: string }[]>([]);
   const [saving, setSaving] = useState(false);

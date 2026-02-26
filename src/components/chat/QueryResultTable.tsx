@@ -23,7 +23,7 @@ export default function QueryResultTable({
 }: QueryResultTableProps) {
   if (isLoading) {
     return (
-      <div className="mt-3 border rounded-xl bg-muted/20 p-4 flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="mt-3 rounded-xl glass-subtle p-4 flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="w-4 h-4 animate-spin" />
         Executando query...
       </div>
@@ -34,7 +34,7 @@ export default function QueryResultTable({
 
   if (!results || results.length === 0) {
     return (
-      <div className="mt-3 border rounded-xl bg-muted/20 p-4 text-sm text-muted-foreground">
+      <div className="mt-3 rounded-xl glass-subtle p-4 text-sm text-muted-foreground">
         Nenhum resultado encontrado.
       </div>
     );
@@ -44,13 +44,13 @@ export default function QueryResultTable({
   const visibleRows = results.slice(0, MAX_ROWS);
 
   return (
-    <div className="mt-3 border rounded-xl overflow-hidden bg-background">
-      <div className="px-3 py-2 border-b bg-muted/30 text-xs font-medium text-muted-foreground">
+    <div className="mt-3 rounded-xl overflow-hidden glass-card">
+      <div className="px-3 py-2 border-b border-white/35 glass-subtle text-xs font-medium text-muted-foreground">
         {results.length} linha(s) retornada(s)
       </div>
       <div className="max-h-80 overflow-auto">
         <Table>
-          <TableHeader className="sticky top-0 bg-background z-10">
+          <TableHeader className="sticky top-0 glass-subtle z-10">
             <TableRow>
               {columns.map((col) => (
                 <TableHead key={col} className="text-xs font-semibold whitespace-nowrap">
@@ -61,7 +61,7 @@ export default function QueryResultTable({
           </TableHeader>
           <TableBody>
             {visibleRows.map((row, rowIndex) => (
-              <TableRow key={rowIndex} className={rowIndex % 2 === 1 ? "bg-muted/20" : ""}>
+              <TableRow key={rowIndex} className={rowIndex % 2 === 1 ? "bg-white/30" : ""}>
                 {columns.map((col) => {
                   const value = row?.[col];
                   const formatted = value === null || value === undefined ? "" : String(value);
@@ -81,7 +81,7 @@ export default function QueryResultTable({
         </Table>
       </div>
       {results.length > MAX_ROWS && (
-        <div className="px-3 py-2 border-t bg-muted/20 text-xs text-muted-foreground">
+        <div className="px-3 py-2 border-t border-white/35 glass-subtle text-xs text-muted-foreground">
           Mostrando as primeiras {MAX_ROWS} linhas de {results.length}.
         </div>
       )}

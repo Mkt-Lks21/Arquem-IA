@@ -34,8 +34,8 @@ export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
   };
 
   return (
-    <div className="border-t p-4 bg-background">
-      <div className="max-w-4xl mx-auto space-y-2">
+    <div className="absolute inset-x-0 bottom-0 z-20 pointer-events-none p-4">
+      <div className="pointer-events-auto max-w-4xl mx-auto space-y-2 glass-subtle rounded-2xl p-3 shadow-[0_18px_45px_rgba(0,0,0,0.14)] border border-white/45">
         <div className="flex gap-2">
           <div className="flex-1">
             <Textarea
@@ -44,7 +44,7 @@ export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Pergunte algo sobre seu banco de dados..."
-              className="min-h-[44px] max-h-[200px] resize-none"
+              className="min-h-[44px] max-h-[200px] resize-none bg-transparent border-white/40"
               disabled={isLoading}
             />
           </div>

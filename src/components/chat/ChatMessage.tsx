@@ -85,7 +85,12 @@ export default function ChatMessage({
   const sqlBlocks = parsedContent?.sqlBlocks || [];
 
   return (
-    <div className={cn("flex gap-3 p-4 rounded-lg", isUser ? "bg-muted/50" : "bg-background")}>
+    <div
+      className={cn(
+        "flex gap-3 p-4 rounded-2xl glass-card",
+        isUser ? "glass-card-strong" : "glass-subtle",
+      )}
+    >
       <div
         className={cn(
           "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
@@ -107,8 +112,8 @@ export default function ChatMessage({
               const hasResults = Object.prototype.hasOwnProperty.call(queryResults, key);
 
               return (
-                <div key={key} className="border rounded-xl bg-card overflow-hidden">
-                  <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between gap-2">
+                <div key={key} className="rounded-2xl glass-card overflow-hidden">
+                  <div className="px-3 py-2 border-b border-white/35 glass-subtle flex items-center justify-between gap-2">
                     <div className="text-xs font-semibold text-muted-foreground">
                       SQL {index + 1} {block.autoExecute ? "(Auto)" : ""}
                     </div>

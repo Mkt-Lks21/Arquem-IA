@@ -1,13 +1,15 @@
 import { useEffect, useRef } from "react";
 import { Message } from "@/types/database";
 import ChatMessage from "./ChatMessage";
-import { Database, MessageSquare } from "lucide-react";
 
 interface ChatMessagesProps {
   messages: Message[];
   isLoading: boolean;
   streamingContent: string;
   onExecuteQuery: (query: string) => Promise<any[]>;
+  emptyGreeting: { title: string; subtitle: string };
+  suggestions: string[];
+  onSuggestionClick: (text: string) => void;
 }
 
 export default function ChatMessages({
@@ -15,6 +17,9 @@ export default function ChatMessages({
   isLoading,
   streamingContent,
   onExecuteQuery,
+  emptyGreeting,
+  suggestions,
+  onSuggestionClick,
 }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -24,28 +29,23 @@ export default function ChatMessages({
 
   if (messages.length === 0 && !isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="text-center max-w-md">
-          <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-            <Database className="w-8 h-8 text-primary" />
+      <div className="flex-1 flex items-center justify-center p-8 pb-40">
+        <div className="w-full max-w-2xl">
+          <div className="space-y-2">
+            <h2 className="text-2xl font-semibold">{emptyGreeting.title}</h2>
+            <p className="text-muted-foreground text-lg">{emptyGreeting.subtitle}</p>
           </div>
-          <h2 className="text-xl font-semibold mb-2">Database Analyst Agent</h2>
-          <p className="text-muted-foreground mb-4">
-            Faca perguntas sobre seu banco de dados, peca analises ou execute queries SQL.
-          </p>
-          <div className="text-sm text-muted-foreground space-y-2">
-            <p className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              "Quais tabelas existem no banco?"
-            </p>
-            <p className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              "Mostre os ultimos 10 registros da tabela users"
-            </p>
-            <p className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              "Mostre o total de pedidos do mes por cliente"
-            </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            {suggestions.map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                onClick={() => onSuggestionClick(suggestion)}
+                className="px-4 py-2 rounded-full text-sm glass-subtle hover:glass-card transition-colors border border-white/40"
+              >
+                {suggestion}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -53,7 +53,7 @@ export default function ChatMessages({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="flex-1 overflow-y-auto px-6 pt-6 pb-40 space-y-4">
       {messages.map((message) => (
         <ChatMessage key={message.id} message={message} onExecuteQuery={onExecuteQuery} />
       ))}
@@ -73,7 +73,7 @@ export default function ChatMessages({
       )}
 
       {isLoading && !streamingContent && (
-        <div className="flex items-center gap-2 text-muted-foreground">
+        <div className="flex items-center gap-2 text-muted-foreground glass-subtle rounded-full px-4 py-2 w-fit">
           <div className="animate-pulse flex gap-1">
             <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
             <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
